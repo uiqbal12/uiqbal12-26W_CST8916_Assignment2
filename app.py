@@ -141,74 +141,47 @@ def start_consumer():
 # ---------------------------------------------------------------------------
 # NEW: Background consumer for Stream Analytics output
 # ---------------------------------------------------------------------------
+
 async def on_analytics_event(partition_context, event):
     """Process events from Stream Analytics output."""
     body = event.body_as_str(encoding="UTF-8")
     
-    # ADD THIS DEBUG LINE
-    app.logger.info(f"📨 RAW ANALYTICS EVENT: {body}")
+    # THIS WILL APPEAR IN APP SERVICE LOGS
+    app.logger.info(f"🔥🔥🔥 ANALYTICS EVENT RECEIVED: {body}")
     
     try:
         data = json.loads(body)
+        app.logger.info(f"📊 TYPE: {data.get('analytics_type')}")
         
-        # ADD THIS DEBUG LINE
-        app.logger.info(f"📊 PARSED DATA: {data}")
-        app.logger.info(f"🔍 ANALYTICS TYPE: {data.get('analytics_type')}")
-        
-    except json.JSONDecodeError:
-        app.logger.warning(f"Failed to parse analytics event: {body}")
-        return
-    
-    with _analytics_lock:
-        if data.get("analytics_type") == "device_breakdown":
-            # ADD THIS DEBUG LINE
-            app.logger.info(f"📱 PROCESSING DEVICE BREAKDOWN: dimension={data.get('dimension')}, count={data.get('event_count')}")
+        with _analytics_lock:
+            if data.get("analytics_type") == "device_breakdown":
+                dimension = data.get("dimension")
+                event_count = data.get("event_count")
+                app.logger.info(f"📱 {dimension}: {event_count} events")
+                
+                _device_breakdown["counts"][dimension] = {
+                    "count": event_count,
+                    "percentage": data.get("percentage", 0)
+                }
+                _device_breakdown["total"] = sum(v["count"] for v in _device_breakdown["counts"].values())
+                _device_breakdown["last_update"] = data.get("timestamp")
+                
+            elif data.get("analytics_type") == "spike_detection":
+                app.logger.info(f"⚠️ SPIKE: {data.get('current_events')} events")
+                
+                _spike_detection["current_spike"] = {
+                    "timestamp": data.get("timestamp"),
+                    "current_events": data.get("current_events"),
+                    "avg_events": data.get("avg_events_1min")
+                }
+                _spike_detection["last_update"] = data.get("timestamp")
+                
+            app.logger.info(f"💾 Current device data: {_device_breakdown['counts']}")
             
-            timestamp = data.get("timestamp")
-            dimension = data.get("dimension")
-            count = data.get("event_count")
-            percentage = data.get("percentage", 0)
-            
-            _device_breakdown["counts"][dimension] = {
-                "count": count,
-                "percentage": percentage
-            }
-            _device_breakdown["last_update"] = timestamp
-            _device_breakdown["total"] = sum(
-                v["count"] for v in _device_breakdown["counts"].values()
-            )
-            
-            # ADD THIS DEBUG LINE
-            app.logger.info(f"✅ DEVICE BREAKDOWN UPDATED: {_device_breakdown['counts']}")
-            
-        elif data.get("analytics_type") == "spike_detection":
-            # ADD THIS DEBUG LINE
-            app.logger.info(f"⚠️ PROCESSING SPIKE DETECTION: current_events={data.get('current_events')}")
-            
-            spike_info = {
-                "timestamp": data.get("timestamp"),
-                "current_events": data.get("current_events"),
-                "avg_events": data.get("avg_events_1min"),
-                "severity": data.get("spike_severity"),
-                "percent_of_average": data.get("percent_of_average")
-            }
-            
-            _spike_detection["current_spike"] = spike_info
-            _spike_detection["history"].append(spike_info)
-            
-            if len(_spike_detection["history"]) > MAX_SPIKE_HISTORY:
-                _spike_detection["history"].pop(0)
-            
-            _spike_detection["last_update"] = data.get("timestamp")
-            
-            # ADD THIS DEBUG LINE
-            app.logger.info(f"✅ SPIKE DETECTION UPDATED: {spike_info}")
-        else:
-            # ADD THIS DEBUG LINE
-            app.logger.warning(f"❓ UNKNOWN ANALYTICS TYPE: {data.get('analytics_type')}")
+    except Exception as e:
+        app.logger.error(f"❌ Error: {e}")
     
     await partition_context.update_checkpoint(event)
-
 
 def start_analytics_consumer():
     """Start consumer for Stream Analytics output in background thread."""
