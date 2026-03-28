@@ -85,70 +85,59 @@
                 });
         }
         
-        function fetchAnalytics() {
-            fetch('/api/analytics')
-                .then(response => response.json())
-                .then(data => {
-                    // Device Breakdown
-                    if (data.device_breakdown && data.device_breakdown.data) {
-                        const deviceDiv = document.getElementById('deviceBreakdown');
-                        const devices = data.device_breakdown.data;
-                        const totalEvents = data.device_breakdown.total_events || 0;
-                        
-                        if (Object.keys(devices).length > 0) {
-                            let html = '<div class="device-grid">';
-                            for (const [device, info] of Object.entries(devices)) {
-                                const percentage = info.percentage || (info.count / totalEvents * 100).toFixed(1);
-                                html += `
-                                    <div class="device-card">
-                                        <strong>${device || 'Unknown'}</strong><br>
-                                        Count: ${info.count}<br>
-                                        ${percentage}% of traffic
-                                    </div>
-                                `;
-                            }
-                            html += '</div>';
-                            html += `<div class="timestamp">Last updated: ${data.device_breakdown.last_update || 'N/A'}</div>`;
-                            deviceDiv.innerHTML = html;
-                        } else {
-                            deviceDiv.innerHTML = '<p>No device data yet. Generate some events!</p>';
-                        }
+function fetchAnalytics() {
+    fetch('/api/analytics')
+        .then(response => response.json())
+        .then(data => {
+            // Device Breakdown
+            if (data.device_breakdown && data.device_breakdown.data) {
+                const devices = data.device_breakdown.data;
+                const deviceDiv = document.getElementById('deviceBreakdown');
+                
+                if (Object.keys(devices).length > 0) {
+                    let html = '<div class="device-grid">';
+                    for (const [device, info] of Object.entries(devices)) {
+                        html += `
+                            <div class="device-card">
+                                <strong>${device || 'Unknown'}</strong><br>
+                                Count: ${info.count}<br>
+                                ${info.percentage ? info.percentage.toFixed(1) + '% of traffic' : ''}
+                            </div>
+                        `;
                     }
-                    
-                    // Spike Detection
-                    if (data.spike_detection && data.spike_detection.current) {
-                        const spikeDiv = document.getElementById('spikeDetection');
-                        const spike = data.spike_detection.current;
-                        const severityClass = spike.severity === 'HIGH' ? 'spike-high' : 
-                                             spike.severity === 'MEDIUM' ? 'spike-medium' : 'spike-low';
-                        
-                        let html = `<div class="${severityClass}" style="padding: 15px; border-radius: 5px;">`;
-                        html += `<strong>Current Status: ${spike.severity || 'NORMAL'} SPIKE DETECTED</strong><br>`;
-                        html += `Current events: ${spike.current_events}<br>`;
-                        html += `Average (1 min): ${Math.round(spike.avg_events)}<br>`;
-                        html += `Increase: ${Math.round(spike.percent_of_average)}% above average<br>`;
-                        html += `<div class="timestamp">Detected at: ${spike.timestamp || 'N/A'}</div>`;
-                        html += `</div>`;
-                        
-                        if (data.spike_detection.recent_history && data.spike_detection.recent_history.length > 0) {
-                            html += '<h4>Recent Spike History:</h4><ul>';
-                            data.spike_detection.recent_history.slice(-5).forEach(history => {
-                                html += `<li>${history.timestamp}: ${Math.round(history.percent_of_average)}% spike (${history.current_events} events)`;
-                                if (history.severity) html += ` - ${history.severity}`;
-                                html += `</li>`;
-                            });
-                            html += '</ul>';
-                        }
-                        
-                        spikeDiv.innerHTML = html;
-                    } else {
-                        document.getElementById('spikeDetection').innerHTML = '<p>No spikes detected. Traffic is normal.</p>';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching analytics:', error);
-                });
-        }
+                    html += '</div>';
+                    deviceDiv.innerHTML = html;
+                } else {
+                    deviceDiv.innerHTML = '<p>No device data yet. Generate more events!</p>';
+                }
+            }
+            
+            // Spike Detection
+            if (data.spike_detection && data.spike_detection.current) {
+                const spike = data.spike_detection.current;
+                const spikeDiv = document.getElementById('spikeDetection');
+                
+                const severityClass = spike.severity === 'HIGH' ? 'spike-high' : 
+                                     spike.severity === 'MEDIUM' ? 'spike-medium' : 'spike-low';
+                
+                let html = `<div class="${severityClass}" style="padding: 15px; border-radius: 5px;">`;
+                html += `<strong>Current Status: ${spike.severity || 'NORMAL'}</strong><br>`;
+                html += `Current events: ${spike.current_events}<br>`;
+                if (spike.avg_events) {
+                    html += `Average (1 min): ${Math.round(spike.avg_events)}<br>`;
+                    html += `Increase: ${Math.round(spike.percent_of_average)}% above average<br>`;
+                }
+                html += `<div class="timestamp">Detected at: ${spike.timestamp || 'N/A'}</div>`;
+                html += `</div>`;
+                spikeDiv.innerHTML = html;
+            } else {
+                document.getElementById('spikeDetection').innerHTML = '<p>No spikes detected. Traffic is normal.</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching analytics:', error);
+        });
+}
         
         // Fetch data every 2 seconds
         fetchEvents();
