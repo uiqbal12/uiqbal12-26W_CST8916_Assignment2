@@ -3,39 +3,203 @@
 <head>
     <title>Clickstream Analytics Dashboard</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .card { background: white; border-radius: 8px; padding: 20px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .event { border-left: 3px solid #0078d4; margin: 10px 0; padding: 10px; background: #fafafa; }
-        .summary { display: flex; gap: 20px; flex-wrap: wrap; }
-        .summary-item { flex: 1; min-width: 200px; background: #e8f0fe; padding: 15px; border-radius: 5px; }
-        .device-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 15px; }
-        .device-card { background: #f0f0f0; padding: 15px; border-radius: 5px; text-align: center; }
-        .spike-high { background: #ffebee; border-left: 3px solid #d32f2f; }
-        .spike-medium { background: #fff3e0; border-left: 3px solid #f57c00; }
-        .spike-low { background: #e8f5e9; border-left: 3px solid #4caf50; }
-        h2 { color: #333; border-bottom: 2px solid #0078d4; padding-bottom: 10px; }
-        .timestamp { font-size: 0.8em; color: #666; margin-top: 5px; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+        }
+        h1 { 
+            color: #333; 
+            border-bottom: 3px solid #0078d4; 
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        h2 { 
+            color: #444; 
+            margin-top: 0;
+            font-size: 1.5em;
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .card { 
+            background: white; 
+            border-radius: 12px; 
+            padding: 20px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .event { 
+            border-left: 3px solid #0078d4; 
+            margin: 10px 0; 
+            padding: 12px; 
+            background: #fafafa;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .event:hover {
+            background: #f0f0f0;
+        }
+        .summary { 
+            display: flex; 
+            gap: 15px; 
+            flex-wrap: wrap; 
+            margin-bottom: 20px;
+        }
+        .summary-item { 
+            flex: 1; 
+            min-width: 120px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px; 
+            border-radius: 8px; 
+            text-align: center;
+            font-weight: bold;
+        }
+        .summary-item strong {
+            display: block;
+            font-size: 1.2em;
+            margin-bottom: 5px;
+        }
+        .device-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
+            gap: 15px; 
+            margin-top: 15px; 
+        }
+        .device-card { 
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 20px; 
+            border-radius: 10px; 
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .device-card:hover {
+            transform: scale(1.05);
+        }
+        .device-card strong {
+            font-size: 1.2em;
+            display: block;
+            margin-bottom: 10px;
+        }
+        .device-card .count {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .device-card .percentage {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        .spike-card {
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        .spike-high { 
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: white;
+            animation: pulse 1s infinite;
+        }
+        .spike-medium { 
+            background: linear-gradient(135deg, #f09819 0%, #ff512f 100%);
+            color: white;
+        }
+        .spike-low { 
+            background: linear-gradient(135deg, #ffd89b 0%, #ffb347 100%);
+            color: #333;
+        }
+        .spike-normal { 
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+            color: white;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        .spike-number {
+            font-size: 3em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .timestamp { 
+            font-size: 0.8em; 
+            color: #666; 
+            margin-top: 10px;
+            text-align: right;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .error {
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .refresh-indicator {
+            text-align: right;
+            font-size: 0.8em;
+            color: #999;
+            margin-bottom: 10px;
+        }
+        .event-detail {
+            font-size: 0.9em;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        .badge-desktop { background: #2196f3; color: white; }
+        .badge-mobile { background: #4caf50; color: white; }
+        .badge-tablet { background: #ff9800; color: white; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📊 Clickstream Analytics Dashboard</h1>
-        
-        <!-- Device Breakdown Card -->
-        <div class="card">
-            <h2>📱 Device Type Breakdown</h2>
-            <div id="deviceBreakdown">Loading device data...</div>
+        <div class="refresh-indicator">
+            Live updates every 3 seconds 🔄
         </div>
         
-        <!-- Spike Detection Card -->
-        <div class="card">
-            <h2>⚠️ Traffic Spike Detection</h2>
-            <div id="spikeDetection">Loading spike data...</div>
+        <div class="dashboard-grid">
+            <!-- Device Breakdown Card -->
+            <div class="card">
+                <h2>📱 Device Type Breakdown</h2>
+                <div id="deviceBreakdown" class="loading">Loading device data...</div>
+            </div>
+            
+            <!-- Spike Detection Card -->
+            <div class="card">
+                <h2>⚠️ Traffic Spike Detection</h2>
+                <div id="spikeDetection" class="loading">Loading spike data...</div>
+            </div>
         </div>
         
         <!-- Event Summary Card -->
-        <div class="card">
+        <div class="card" style="margin-bottom: 20px;">
             <h2>📈 Event Summary</h2>
             <div id="summary" class="summary">Loading...</div>
         </div>
@@ -43,107 +207,186 @@
         <!-- Recent Events Card -->
         <div class="card">
             <h2>🔄 Recent Events</h2>
-            <div id="events">Loading events...</div>
+            <div id="events" style="max-height: 500px; overflow-y: auto;">Loading events...</div>
         </div>
     </div>
 
     <script>
+        let lastUpdate = Date.now();
+        
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return 'N/A';
+            try {
+                return new Date(timestamp).toLocaleTimeString();
+            } catch(e) {
+                return timestamp;
+            }
+        }
+        
+        function getDeviceBadge(device) {
+            const badges = {
+                'desktop': 'badge-desktop',
+                'mobile': 'badge-mobile',
+                'tablet': 'badge-tablet'
+            };
+            return badges[device] || '';
+        }
+        
         function fetchEvents() {
             fetch('/api/events?limit=20')
                 .then(response => response.json())
                 .then(data => {
+                    // Update summary
                     const summaryDiv = document.getElementById('summary');
                     summaryDiv.innerHTML = '';
                     for (const [eventType, count] of Object.entries(data.summary)) {
                         summaryDiv.innerHTML += `<div class="summary-item">
-                            <strong>${eventType}</strong><br>
-                            Count: ${count}
+                            <strong>${eventType.replace(/_/g, ' ').toUpperCase()}</strong>
+                            ${count} events
                         </div>`;
                     }
-                    summaryDiv.innerHTML += `<div class="summary-item">
-                        <strong>Total Events</strong><br>
-                        ${data.total}
-                    </div>`;
+                    if (Object.keys(data.summary).length === 0) {
+                        summaryDiv.innerHTML = '<div class="loading">No events yet. Click on products in the store!</div>';
+                    }
                     
+                    // Update events list
                     const eventsDiv = document.getElementById('events');
                     eventsDiv.innerHTML = '';
-                    data.events.slice().reverse().forEach(event => {
-                        const eventDiv = document.createElement('div');
-                        eventDiv.className = 'event';
-                        eventDiv.innerHTML = `
-                            <strong>${event.event_type}</strong> - 
-                            Page: ${event.page} - 
-                            Time: ${event.server_timestamp || event.client_timestamp || 'N/A'}
-                            ${event.product_id ? `<br>📦 Product: ${event.product_id}` : ''}
-                            ${event.deviceType ? `<br>📱 Device: ${event.deviceType} | 🌐 Browser: ${event.browser} | 💻 OS: ${event.os}` : ''}
-                        `;
-                        eventsDiv.appendChild(eventDiv);
-                    });
+                    if (data.events.length === 0) {
+                        eventsDiv.innerHTML = '<div class="loading">No events yet. Click on products to generate events!</div>';
+                    } else {
+                        data.events.slice().reverse().forEach(event => {
+                            const eventDiv = document.createElement('div');
+                            eventDiv.className = 'event';
+                            const deviceBadge = getDeviceBadge(event.deviceType);
+                            eventDiv.innerHTML = `
+                                <div class="event-detail">
+                                    <strong>${event.event_type?.replace(/_/g, ' ').toUpperCase() || 'UNKNOWN'}</strong>
+                                    <span class="badge ${deviceBadge}">${event.deviceType || 'unknown'}</span>
+                                    <br>
+                                    Page: ${event.page || '/'}
+                                    ${event.product_id ? `<br>📦 Product: ${event.product_id}` : ''}
+                                    <br>
+                                    ${event.browser ? `🌐 ${event.browser} | ` : ''}${event.os || ''}
+                                    <br>
+                                    <small>🕐 ${formatTimestamp(event.server_timestamp || event.client_timestamp)}</small>
+                                </div>
+                            `;
+                            eventsDiv.appendChild(eventDiv);
+                        });
+                    }
                 })
                 .catch(error => {
                     console.error('Error fetching events:', error);
+                    document.getElementById('events').innerHTML = '<div class="error">Error loading events</div>';
                 });
         }
         
-function fetchAnalytics() {
-    fetch('/api/analytics')
-        .then(response => response.json())
-        .then(data => {
-            // Device Breakdown
-            if (data.device_breakdown && data.device_breakdown.data) {
-                const devices = data.device_breakdown.data;
-                const deviceDiv = document.getElementById('deviceBreakdown');
-                
-                if (Object.keys(devices).length > 0) {
-                    let html = '<div class="device-grid">';
-                    for (const [device, info] of Object.entries(devices)) {
-                        html += `
-                            <div class="device-card">
-                                <strong>${device || 'Unknown'}</strong><br>
-                                Count: ${info.count}<br>
-                                ${info.percentage ? info.percentage.toFixed(1) + '% of traffic' : ''}
-                            </div>
-                        `;
+        function fetchAnalytics() {
+            fetch('/api/analytics')
+                .then(response => response.json())
+                .then(data => {
+                    lastUpdate = Date.now();
+                    
+                    // Device Breakdown
+                    const deviceDiv = document.getElementById('deviceBreakdown');
+                    let hasDeviceData = false;
+                    
+                    if (data.device_breakdown && data.device_breakdown.data) {
+                        const devices = data.device_breakdown.data;
+                        const totalEvents = data.device_breakdown.total_events || 0;
+                        
+                        if (Object.keys(devices).length > 0) {
+                            hasDeviceData = true;
+                            let html = '<div class="device-grid">';
+                            for (const [device, info] of Object.entries(devices)) {
+                                const count = info.count || info;
+                                const percentage = info.percentage || (totalEvents > 0 ? (count / totalEvents * 100).toFixed(1) : 0);
+                                html += `
+                                    <div class="device-card">
+                                        <strong>${device?.toUpperCase() || 'UNKNOWN'}</strong>
+                                        <div class="count">${count}</div>
+                                        <div class="percentage">${percentage}% of traffic</div>
+                                    </div>
+                                `;
+                            }
+                            html += '</div>';
+                            if (data.device_breakdown.last_update) {
+                                html += `<div class="timestamp">Last update: ${formatTimestamp(data.device_breakdown.last_update)}</div>`;
+                            }
+                            deviceDiv.innerHTML = html;
+                        }
                     }
-                    html += '</div>';
-                    deviceDiv.innerHTML = html;
-                } else {
-                    deviceDiv.innerHTML = '<p>No device data yet. Generate more events!</p>';
-                }
-            }
-            
-            // Spike Detection
-            if (data.spike_detection && data.spike_detection.current) {
-                const spike = data.spike_detection.current;
-                const spikeDiv = document.getElementById('spikeDetection');
-                
-                const severityClass = spike.severity === 'HIGH' ? 'spike-high' : 
-                                     spike.severity === 'MEDIUM' ? 'spike-medium' : 'spike-low';
-                
-                let html = `<div class="${severityClass}" style="padding: 15px; border-radius: 5px;">`;
-                html += `<strong>Current Status: ${spike.severity || 'NORMAL'}</strong><br>`;
-                html += `Current events: ${spike.current_events}<br>`;
-                if (spike.avg_events) {
-                    html += `Average (1 min): ${Math.round(spike.avg_events)}<br>`;
-                    html += `Increase: ${Math.round(spike.percent_of_average)}% above average<br>`;
-                }
-                html += `<div class="timestamp">Detected at: ${spike.timestamp || 'N/A'}</div>`;
-                html += `</div>`;
-                spikeDiv.innerHTML = html;
-            } else {
-                document.getElementById('spikeDetection').innerHTML = '<p>No spikes detected. Traffic is normal.</p>';
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching analytics:', error);
-        });
-}
+                    
+                    if (!hasDeviceData) {
+                        deviceDiv.innerHTML = '<div class="loading">No device data yet. Generate some events and wait 1-2 minutes!</div>';
+                    }
+                    
+                    // Spike Detection
+                    const spikeDiv = document.getElementById('spikeDetection');
+                    let hasSpikeData = false;
+                    
+                    if (data.spike_detection && data.spike_detection.current) {
+                        const spike = data.spike_detection.current;
+                        const severity = spike.severity || 
+                            (spike.current_events > (spike.avg_events || 0) * 1.5 ? 'HIGH' :
+                             spike.current_events > (spike.avg_events || 0) * 1.2 ? 'MEDIUM' : 'LOW');
+                        
+                        const severityClass = severity === 'HIGH' ? 'spike-high' : 
+                                             severity === 'MEDIUM' ? 'spike-medium' : 'spike-low';
+                        
+                        let html = `<div class="spike-card ${severityClass}">`;
+                        html += `<strong>${severity} SPIKE DETECTED</strong>`;
+                        html += `<div class="spike-number">${spike.current_events || 0} events</div>`;
+                        if (spike.avg_events) {
+                            const percentIncrease = ((spike.current_events - spike.avg_events) / spike.avg_events * 100).toFixed(0);
+                            html += `<div>↑ ${percentIncrease}% above average</div>`;
+                            html += `<div style="font-size: 0.9em; margin-top: 10px;">Normal average: ${Math.round(spike.avg_events)} events</div>`;
+                        }
+                        if (spike.timestamp) {
+                            html += `<div class="timestamp">Detected: ${formatTimestamp(spike.timestamp)}</div>`;
+                        }
+                        html += `</div>`;
+                        
+                        if (data.spike_detection.recent_history && data.spike_detection.recent_history.length > 0) {
+                            html += '<div style="margin-top: 15px;"><strong>Recent spikes:</strong><ul style="margin-top: 8px;">';
+                            data.spike_detection.recent_history.slice(-3).forEach(history => {
+                                html += `<li>${formatTimestamp(history.timestamp)}: ${history.current_events} events`;
+                                if (history.severity) html += ` (${history.severity})`;
+                                html += `</li>`;
+                            });
+                            html += '</ul></div>';
+                        }
+                        
+                        spikeDiv.innerHTML = html;
+                        hasSpikeData = true;
+                    }
+                    
+                    if (!hasSpikeData) {
+                        spikeDiv.innerHTML = '<div class="spike-card spike-normal"><strong>✅ NORMAL TRAFFIC</strong><div class="spike-number">No spikes detected</div><div>Traffic is within normal range</div></div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching analytics:', error);
+                    document.getElementById('spikeDetection').innerHTML = '<div class="error">Error loading analytics data</div>';
+                });
+        }
         
-        // Fetch data every 2 seconds
+        // Initial load
         fetchEvents();
         fetchAnalytics();
-        setInterval(fetchEvents, 2000);
-        setInterval(fetchAnalytics, 5000); // Analytics updates less frequently
+        
+        // Refresh every 3 seconds
+        setInterval(fetchEvents, 3000);
+        setInterval(fetchAnalytics, 5000);
+        
+        // Check for stale data (if no update in 10 seconds)
+        setInterval(() => {
+            if (Date.now() - lastUpdate > 10000) {
+                console.log('Refreshing analytics due to timeout...');
+                fetchAnalytics();
+            }
+        }, 5000);
     </script>
 </body>
 </html>
