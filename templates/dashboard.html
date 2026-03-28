@@ -1,149 +1,41 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Clickstream Analytics Dashboard</title>
+    <title>Analytics Test</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .card { background: white; border-radius: 8px; padding: 20px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .event { border-left: 3px solid #0078d4; margin: 10px 0; padding: 10px; background: #fafafa; }
-        .summary { display: flex; gap: 20px; flex-wrap: wrap; }
-        .summary-item { flex: 1; min-width: 200px; background: #e8f0fe; padding: 15px; border-radius: 5px; }
-        .device-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 15px; }
-        .device-card { background: #f0f0f0; padding: 15px; border-radius: 5px; text-align: center; }
-        .spike-high { background: #ffebee; border-left: 3px solid #d32f2f; }
-        .spike-medium { background: #fff3e0; border-left: 3px solid #f57c00; }
-        .spike-low { background: #e8f5e9; border-left: 3px solid #4caf50; }
-        h2 { color: #333; border-bottom: 2px solid #0078d4; padding-bottom: 10px; }
-        .timestamp { font-size: 0.8em; color: #666; margin-top: 5px; }
+        body { font-family: monospace; margin: 20px; }
+        .data { background: #f0f0f0; padding: 10px; margin: 10px 0; white-space: pre-wrap; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>📊 Clickstream Analytics Dashboard</h1>
-        
-        <!-- Device Breakdown Card -->
-        <div class="card">
-            <h2>📱 Device Type Breakdown</h2>
-            <div id="deviceBreakdown">Loading device data...</div>
-        </div>
-        
-        <!-- Spike Detection Card -->
-        <div class="card">
-            <h2>⚠️ Traffic Spike Detection</h2>
-            <div id="spikeDetection">Loading spike data...</div>
-        </div>
-        
-        <!-- Event Summary Card -->
-        <div class="card">
-            <h2>📈 Event Summary</h2>
-            <div id="summary" class="summary">Loading...</div>
-        </div>
-        
-        <!-- Recent Events Card -->
-        <div class="card">
-            <h2>🔄 Recent Events</h2>
-            <div id="events">Loading events...</div>
-        </div>
-    </div>
+    <h1>Analytics Debug</h1>
+    
+    <h2>Raw /api/analytics Response:</h2>
+    <div id="analytics" class="data">Loading...</div>
+    
+    <h2>Raw /api/events Response (last 5):</h2>
+    <div id="events" class="data">Loading...</div>
 
     <script>
-        function fetchEvents() {
-            fetch('/api/events?limit=20')
-                .then(response => response.json())
-                .then(data => {
-                    const summaryDiv = document.getElementById('summary');
-                    summaryDiv.innerHTML = '';
-                    for (const [eventType, count] of Object.entries(data.summary)) {
-                        summaryDiv.innerHTML += `<div class="summary-item">
-                            <strong>${eventType}</strong><br>
-                            Count: ${count}
-                        </div>`;
-                    }
-                    summaryDiv.innerHTML += `<div class="summary-item">
-                        <strong>Total Events</strong><br>
-                        ${data.total}
-                    </div>`;
-                    
-                    const eventsDiv = document.getElementById('events');
-                    eventsDiv.innerHTML = '';
-                    data.events.slice().reverse().forEach(event => {
-                        const eventDiv = document.createElement('div');
-                        eventDiv.className = 'event';
-                        eventDiv.innerHTML = `
-                            <strong>${event.event_type}</strong> - 
-                            Page: ${event.page} - 
-                            Time: ${event.server_timestamp || event.client_timestamp || 'N/A'}
-                            ${event.product_id ? `<br>📦 Product: ${event.product_id}` : ''}
-                            ${event.deviceType ? `<br>📱 Device: ${event.deviceType} | 🌐 Browser: ${event.browser} | 💻 OS: ${event.os}` : ''}
-                        `;
-                        eventsDiv.appendChild(eventDiv);
-                    });
-                })
-                .catch(error => {
-                    console.error('Error fetching events:', error);
-                });
-        }
-        
-function fetchAnalytics() {
-    fetch('/api/analytics')
-        .then(response => response.json())
-        .then(data => {
-            // Device Breakdown
-            if (data.device_breakdown && data.device_breakdown.data) {
-                const devices = data.device_breakdown.data;
-                const deviceDiv = document.getElementById('deviceBreakdown');
-                
-                if (Object.keys(devices).length > 0) {
-                    let html = '<div class="device-grid">';
-                    for (const [device, info] of Object.entries(devices)) {
-                        html += `
-                            <div class="device-card">
-                                <strong>${device || 'Unknown'}</strong><br>
-                                Count: ${info.count}<br>
-                                ${info.percentage ? info.percentage.toFixed(1) + '% of traffic' : ''}
-                            </div>
-                        `;
-                    }
-                    html += '</div>';
-                    deviceDiv.innerHTML = html;
-                } else {
-                    deviceDiv.innerHTML = '<p>No device data yet. Generate more events!</p>';
-                }
-            }
+        // Fetch and display analytics data
+        fetch('/api/analytics')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('analytics').innerHTML = JSON.stringify(data, null, 2);
+            })
+            .catch(e => {
+                document.getElementById('analytics').innerHTML = 'Error: ' + e;
+            });
             
-            // Spike Detection
-            if (data.spike_detection && data.spike_detection.current) {
-                const spike = data.spike_detection.current;
-                const spikeDiv = document.getElementById('spikeDetection');
-                
-                const severityClass = spike.severity === 'HIGH' ? 'spike-high' : 
-                                     spike.severity === 'MEDIUM' ? 'spike-medium' : 'spike-low';
-                
-                let html = `<div class="${severityClass}" style="padding: 15px; border-radius: 5px;">`;
-                html += `<strong>Current Status: ${spike.severity || 'NORMAL'}</strong><br>`;
-                html += `Current events: ${spike.current_events}<br>`;
-                if (spike.avg_events) {
-                    html += `Average (1 min): ${Math.round(spike.avg_events)}<br>`;
-                    html += `Increase: ${Math.round(spike.percent_of_average)}% above average<br>`;
-                }
-                html += `<div class="timestamp">Detected at: ${spike.timestamp || 'N/A'}</div>`;
-                html += `</div>`;
-                spikeDiv.innerHTML = html;
-            } else {
-                document.getElementById('spikeDetection').innerHTML = '<p>No spikes detected. Traffic is normal.</p>';
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching analytics:', error);
-        });
-}
-        
-        // Fetch data every 2 seconds
-        fetchEvents();
-        fetchAnalytics();
-        setInterval(fetchEvents, 2000);
-        setInterval(fetchAnalytics, 5000); // Analytics updates less frequently
+        // Fetch and display events
+        fetch('/api/events?limit=5')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('events').innerHTML = JSON.stringify(data, null, 2);
+            })
+            .catch(e => {
+                document.getElementById('events').innerHTML = 'Error: ' + e;
+            });
     </script>
 </body>
 </html>
