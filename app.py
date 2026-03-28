@@ -146,18 +146,18 @@ async def on_analytics_event(partition_context, event):
     """Process events from Stream Analytics output."""
     body = event.body_as_str(encoding="UTF-8")
     
-    # THIS WILL APPEAR IN APP SERVICE LOGS
-    app.logger.info(f"🔥🔥🔥 ANALYTICS EVENT RECEIVED: {body}")
+    # FORCE LOG - this will appear in App Service logs
+    app.logger.info(f"🔥 ANALYTICS CONSUMER GOT: {body[:200]}")
     
     try:
         data = json.loads(body)
-        app.logger.info(f"📊 TYPE: {data.get('analytics_type')}")
+        app.logger.info(f"📊 PARSED: analytics_type={data.get('analytics_type')}")
         
         with _analytics_lock:
             if data.get("analytics_type") == "device_breakdown":
                 dimension = data.get("dimension")
                 event_count = data.get("event_count")
-                app.logger.info(f"📱 {dimension}: {event_count} events")
+                app.logger.info(f"📱 DEVICE: {dimension} = {event_count}")
                 
                 _device_breakdown["counts"][dimension] = {
                     "count": event_count,
@@ -176,8 +176,6 @@ async def on_analytics_event(partition_context, event):
                 }
                 _spike_detection["last_update"] = data.get("timestamp")
                 
-            app.logger.info(f"💾 Current device data: {_device_breakdown['counts']}")
-            
     except Exception as e:
         app.logger.error(f"❌ Error: {e}")
     
