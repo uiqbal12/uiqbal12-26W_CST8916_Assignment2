@@ -155,28 +155,15 @@ def start_analytics_consumer():
                     _device_breakdown["last_update"] = timestamp
                     
                 elif data.get("analytics_type") == "spike_detection":
-                    current_events = data.get("current_events")
-                    avg_events = data.get("avg_events_1min")
-                    timestamp = data.get("timestamp")
-                    
-                    app.logger.info(f"⚠️ SPIKE: {current_events} events (avg: {avg_events})")
+                    app.logger.info(f"⚠️ SPIKE: {data.get('current_events')} events")
                     
                     spike_info = {
-                        "timestamp": timestamp,
-                        "current_events": current_events,
-                        "avg_events": avg_events,
-                        "severity": data.get("spike_severity"),
-                        "percent_of_average": data.get("percent_of_average")
+                        "timestamp": data.get("timestamp"),
+                        "current_events": data.get("current_events"),
+                        "avg_events": data.get("avg_events_1min")
                     }
-                    
                     _spike_detection["current_spike"] = spike_info
-                    if len(_spike_detection["history"]) >= MAX_SPIKE_HISTORY:
-                        _spike_detection["history"].pop(0)
-                    _spike_detection["history"].append(spike_info)
-                    _spike_detection["last_update"] = timestamp
-                    
-                else:
-                    app.logger.info(f"❓ Unknown analytics type: {data.get('analytics_type')}")
+                    _spike_detection["last_update"] = data.get("timestamp")
             
             partition_context.update_checkpoint(event)
             
@@ -194,15 +181,21 @@ def start_analytics_consumer():
             )
             app.logger.info(f"🔧 Consumer client created for {ANALYTICS_EVENT_HUB}")
             
+            app.logger.info("🔧 Getting partition IDs...")
+            partition_ids = consumer.get_partition_ids()
+            app.logger.info(f"🔧 Partitions: {partition_ids}")
+            
+            app.logger.info("🔧 Starting consumer.receive() - will wait for messages...")
             with consumer:
-                app.logger.info("🔧 Starting consumer.receive()...")
                 consumer.receive(
                     on_event=on_event_sync,
-                    starting_position="-1",
-                    max_wait_time=5
+                    starting_position="-1",  # Read from beginning
+                    max_wait_time=30,  # Wait 30 seconds for messages
+                    prefetch=10
                 )
+            app.logger.info("🔧 consumer.receive() finished (should not happen normally)")
         except Exception as e:
-            app.logger.error(f"🔧 Analytics consumer failed: {e}")
+            app.logger.error(f"🔧 Analytics consumer failed: {e}", exc_info=True)
     
     thread = threading.Thread(target=run_consumer, daemon=True)
     thread.start()
@@ -284,6 +277,40 @@ def get_events():
         summary[et] = summary.get(et, 0) + 1
 
     return jsonify({"events": recent, "summary": summary, "total": len(recent)}), 200
+
+
+@app.route("/debug/receive-test", methods=["GET"])
+def receive_test():
+    """Test receiving a message directly"""
+    from azure.eventhub import EventHubConsumerClient
+    
+    messages = []
+    
+    def on_event(partition_context, event):
+        messages.append(event.body_as_str())
+        app.logger.info(f"📨 RECEIVE TEST GOT: {event.body_as_str()[:200]}")
+    
+    try:
+        client = EventHubConsumerClient.from_connection_string(
+            conn_str=CONNECTION_STR,
+            consumer_group="$Default",
+            eventhub_name=ANALYTICS_EVENT_HUB,
+        )
+        
+        with client:
+            # Try to receive messages
+            client.receive(
+                on_event=on_event,
+                starting_position="-1",
+                max_wait_time=10  # Wait 10 seconds
+            )
+        
+        return jsonify({
+            "messages_received": messages,
+            "count": len(messages)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/analytics", methods=["GET"])
