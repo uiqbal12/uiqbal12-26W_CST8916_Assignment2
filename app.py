@@ -245,6 +245,7 @@ def start_analytics_consumer():
 def peek_analytics():
     """Peek messages from analytics Event Hub"""
     from azure.eventhub import EventHubConsumerClient
+    import asyncio
     
     conn_str = os.environ.get("EVENT_HUB_CONNECTION_STR", "")
     analytics_hub = os.environ.get("ANALYTICS_EVENT_HUB", "clickstream-analytics")
@@ -253,53 +254,67 @@ def peek_analytics():
         return jsonify({"error": "EVENT_HUB_CONNECTION_STR not set"}), 500
     
     messages = []
+    error = None
     
-    try:
-        # Create consumer client
-        client = EventHubConsumerClient.from_connection_string(
-            conn_str=conn_str,
-            consumer_group="$Default",
-            eventhub_name=analytics_hub,
-        )
-        
-        # Get partition info
-        with client:
-            partition_ids = client.get_partition_ids()
+    async def receive_messages():
+        nonlocal messages, error
+        try:
+            client = EventHubConsumerClient.from_connection_string(
+                conn_str=conn_str,
+                consumer_group="$Default",
+                eventhub_name=analytics_hub,
+            )
             
-            # Get events from each partition
-            for partition_id in partition_ids:
-                try:
-                    # Get partition properties
-                    props = client.get_partition_properties(partition_id)
-                    
-                    # If there are messages, peek the last ones
-                    if props['last_enqueued_sequence_number'] > 0:
-                        start_seq = max(0, props['last_enqueued_sequence_number'] - 5)
+            async with client:
+                partition_ids = await client.get_partition_ids()
+                
+                for partition_id in partition_ids:
+                    try:
+                        props = await client.get_partition_properties(partition_id)
                         
-                        events = client.receive_batch(
-                            partition_id=partition_id,
-                            starting_sequence_number=start_seq,
-                            max_batch_size=5
-                        )
+                        if props['last_enqueued_sequence_number'] > 0:
+                            start_seq = max(0, props['last_enqueued_sequence_number'] - 5)
+                            
+                            # Create a list to collect events
+                            events_received = []
+                            
+                            # Define callback to collect events
+                            def on_event(partition_context, event):
+                                if event:
+                                    events_received.append({
+                                        "partition": partition_id,
+                                        "body": event.body_as_str(),
+                                        "sequence": event.sequence_number,
+                                        "enqueued_time": str(event.enqueued_time)
+                                    })
+                            
+                            # Receive events
+                            await client.receive(
+                                on_event=on_event,
+                                partition_id=partition_id,
+                                starting_position=start_seq,
+                                max_wait_time=5
+                            )
+                            
+                            messages.extend(events_received)
+                            
+                    except Exception as e:
+                        messages.append({"error": f"Partition {partition_id}: {str(e)}"})
                         
-                        for event in events:
-                            messages.append({
-                                "partition": partition_id,
-                                "body": event.body_as_str(),
-                                "sequence": event.sequence_number,
-                                "enqueued_time": str(event.enqueued_time)
-                            })
-                except Exception as e:
-                    messages.append({"error": f"Partition {partition_id}: {str(e)}"})
-                    
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        except Exception as e:
+            error = str(e)
+    
+    # Run async function
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(receive_messages())
+    loop.close()
     
     return jsonify({
         "messages": messages,
         "count": len(messages),
         "hub": analytics_hub,
-        "partitions": partition_ids if 'partition_ids' in locals() else []
+        "error": error
     })
 @app.route("/")
 def index():
