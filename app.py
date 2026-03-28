@@ -241,7 +241,66 @@ def start_analytics_consumer():
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
-
+@app.route("/debug/peek-analytics", methods=["GET"])
+def peek_analytics():
+    """Peek messages from analytics Event Hub"""
+    from azure.eventhub import EventHubConsumerClient
+    
+    conn_str = os.environ.get("EVENT_HUB_CONNECTION_STR", "")
+    analytics_hub = os.environ.get("ANALYTICS_EVENT_HUB", "clickstream-analytics")
+    
+    if not conn_str:
+        return jsonify({"error": "EVENT_HUB_CONNECTION_STR not set"}), 500
+    
+    messages = []
+    
+    try:
+        # Create consumer client
+        client = EventHubConsumerClient.from_connection_string(
+            conn_str=conn_str,
+            consumer_group="$Default",
+            eventhub_name=analytics_hub,
+        )
+        
+        # Get partition info
+        with client:
+            partition_ids = client.get_partition_ids()
+            
+            # Get events from each partition
+            for partition_id in partition_ids:
+                try:
+                    # Get partition properties
+                    props = client.get_partition_properties(partition_id)
+                    
+                    # If there are messages, peek the last ones
+                    if props['last_enqueued_sequence_number'] > 0:
+                        start_seq = max(0, props['last_enqueued_sequence_number'] - 5)
+                        
+                        events = client.receive_batch(
+                            partition_id=partition_id,
+                            starting_sequence_number=start_seq,
+                            max_batch_size=5
+                        )
+                        
+                        for event in events:
+                            messages.append({
+                                "partition": partition_id,
+                                "body": event.body_as_str(),
+                                "sequence": event.sequence_number,
+                                "enqueued_time": str(event.enqueued_time)
+                            })
+                except Exception as e:
+                    messages.append({"error": f"Partition {partition_id}: {str(e)}"})
+                    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+    return jsonify({
+        "messages": messages,
+        "count": len(messages),
+        "hub": analytics_hub,
+        "partitions": partition_ids if 'partition_ids' in locals() else []
+    })
 @app.route("/")
 def index():
     """Serve the demo e-commerce store."""
