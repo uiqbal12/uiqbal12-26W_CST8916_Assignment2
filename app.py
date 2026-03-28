@@ -357,6 +357,13 @@ def debug_consumer():
     })
 
 
+@app.route("/debug/test-start", methods=["GET"])
+def test_start():
+    """Manually trigger analytics consumer start"""
+    start_analytics_consumer()
+    return jsonify({"status": "start_analytics_consumer called"})
+
+
 # ---------------------------------------------------------------------------
 # NEW: Analytics endpoint
 # ---------------------------------------------------------------------------
