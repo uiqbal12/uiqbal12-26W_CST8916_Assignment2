@@ -139,20 +139,21 @@ def start_analytics_consumer():
             app.logger.info(f"📊 PARSED: analytics_type={data.get('analytics_type')}")
             
             with _analytics_lock:
-                if data.get("analytics_type") == "device_breakdown":
-                    dimension = data.get("dimension")
-                    event_count = data.get("event_count")
-                    percentage = data.get("percentage", 0)
-                    timestamp = data.get("timestamp")
-                    
-                    app.logger.info(f"📱 DEVICE: {dimension} = {event_count} ({percentage}%)")
-                    
-                    _device_breakdown["counts"][dimension] = {
-                        "count": event_count,
-                        "percentage": percentage
-                    }
-                    _device_breakdown["total"] = sum(v["count"] for v in _device_breakdown["counts"].values())
-                    _device_breakdown["last_update"] = timestamp
+             if data.get("analytics_type") == "device_breakdown":
+    dimension = data.get("dimension")
+    event_count = data.get("event_count")
+    percentage = data.get("percentage", 0)
+    timestamp = data.get("timestamp")
+    
+    app.logger.info(f"📱 DEVICE: {dimension} = {event_count} ({percentage}%)")
+    
+    # Fix: Store in counts dictionary, not as separate property
+    _device_breakdown["counts"][dimension] = {
+        "count": event_count,
+        "percentage": percentage
+    }
+    _device_breakdown["total"] = sum(v["count"] for v in _device_breakdown["counts"].values())
+    _device_breakdown["last_update"] = timestamp
                     
                 elif data.get("analytics_type") == "spike_detection":
                     app.logger.info(f"⚠️ SPIKE: {data.get('current_events')} events")
