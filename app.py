@@ -243,78 +243,48 @@ def start_analytics_consumer():
 # ---------------------------------------------------------------------------
 @app.route("/debug/peek-analytics", methods=["GET"])
 def peek_analytics():
-    """Peek messages from analytics Event Hub"""
+    """Simple sync peek at analytics Event Hub messages"""
     from azure.eventhub import EventHubConsumerClient
-    import asyncio
+    import time
     
     conn_str = os.environ.get("EVENT_HUB_CONNECTION_STR", "")
     analytics_hub = os.environ.get("ANALYTICS_EVENT_HUB", "clickstream-analytics")
     
     if not conn_str:
-        return jsonify({"error": "EVENT_HUB_CONNECTION_STR not set"}), 500
+        return jsonify({"error": "Connection string not set"}), 500
     
     messages = []
-    error = None
     
-    async def receive_messages():
-        nonlocal messages, error
-        try:
-            client = EventHubConsumerClient.from_connection_string(
-                conn_str=conn_str,
-                consumer_group="$Default",
-                eventhub_name=analytics_hub,
+    try:
+        # Use synchronous consumer client (not async)
+        client = EventHubConsumerClient.from_connection_string(
+            conn_str=conn_str,
+            consumer_group="$Default",
+            eventhub_name=analytics_hub,
+        )
+        
+        # Define callback to collect messages
+        def on_event(partition_context, event):
+            if event:
+                messages.append(event.body_as_str())
+                print(f"Got message: {event.body_as_str()}")
+        
+        # Receive messages (synchronous)
+        with client:
+            client.receive(
+                on_event=on_event,
+                starting_position="-1",  # From beginning
+                max_wait_time=3,  # Wait 3 seconds
+                prefetch=10
             )
             
-            async with client:
-                partition_ids = await client.get_partition_ids()
-                
-                for partition_id in partition_ids:
-                    try:
-                        props = await client.get_partition_properties(partition_id)
-                        
-                        if props['last_enqueued_sequence_number'] > 0:
-                            start_seq = max(0, props['last_enqueued_sequence_number'] - 5)
-                            
-                            # Create a list to collect events
-                            events_received = []
-                            
-                            # Define callback to collect events
-                            def on_event(partition_context, event):
-                                if event:
-                                    events_received.append({
-                                        "partition": partition_id,
-                                        "body": event.body_as_str(),
-                                        "sequence": event.sequence_number,
-                                        "enqueued_time": str(event.enqueued_time)
-                                    })
-                            
-                            # Receive events
-                            await client.receive(
-                                on_event=on_event,
-                                partition_id=partition_id,
-                                starting_position=start_seq,
-                                max_wait_time=5
-                            )
-                            
-                            messages.extend(events_received)
-                            
-                    except Exception as e:
-                        messages.append({"error": f"Partition {partition_id}: {str(e)}"})
-                        
-        except Exception as e:
-            error = str(e)
-    
-    # Run async function
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(receive_messages())
-    loop.close()
+    except Exception as e:
+        return jsonify({"error": str(e), "messages": messages}), 200
     
     return jsonify({
         "messages": messages,
         "count": len(messages),
-        "hub": analytics_hub,
-        "error": error
+        "hub": analytics_hub
     })
 @app.route("/")
 def index():
