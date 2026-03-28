@@ -183,30 +183,44 @@ async def on_analytics_event(partition_context, event):
 
 def start_analytics_consumer():
     """Start consumer for Stream Analytics output in background thread."""
+    app.logger.info("🔧 start_analytics_consumer() called")
+    app.logger.info(f"🔧 CONNECTION_STR set: {bool(CONNECTION_STR)}")
+    app.logger.info(f"🔧 ANALYTICS_EVENT_HUB: {ANALYTICS_EVENT_HUB}")
+    
     if not CONNECTION_STR:
         app.logger.warning("Connection string not set - analytics consumer not started")
         return
     
     async def run_consumer():
-        consumer = EventHubConsumerClient.from_connection_string(
-            conn_str=CONNECTION_STR,
-            consumer_group=ANALYTICS_CONSUMER_GROUP,
-            eventhub_name=ANALYTICS_EVENT_HUB,
-        )
-        
-        async with consumer:
-            await consumer.receive(
-                on_event=on_analytics_event,
-                starting_position="-1",
-                on_error=lambda e: app.logger.error(f"Analytics consumer error: {e}")
+        app.logger.info("🔧 run_consumer() async function started")
+        try:
+            consumer = EventHubConsumerClient.from_connection_string(
+                conn_str=CONNECTION_STR,
+                consumer_group=ANALYTICS_CONSUMER_GROUP,
+                eventhub_name=ANALYTICS_EVENT_HUB,
             )
+            app.logger.info(f"🔧 Consumer client created for {ANALYTICS_EVENT_HUB}")
+            
+            async with consumer:
+                app.logger.info("🔧 Starting consumer.receive()...")
+                await consumer.receive(
+                    on_event=on_analytics_event,
+                    starting_position="-1",
+                    on_error=lambda e: app.logger.error(f"Analytics consumer error: {e}")
+                )
+        except Exception as e:
+            app.logger.error(f"🔧 run_consumer() failed: {e}")
     
     def run_in_thread():
-        asyncio.run(run_consumer())
+        app.logger.info("🔧 Analytics consumer thread started")
+        try:
+            asyncio.run(run_consumer())
+        except Exception as e:
+            app.logger.error(f"🔧 Analytics consumer thread error: {e}")
     
     thread = threading.Thread(target=run_in_thread, daemon=True)
     thread.start()
-    app.logger.info("Analytics consumer thread started")
+    app.logger.info("✅ Analytics consumer thread created")
 
 
 # ---------------------------------------------------------------------------
