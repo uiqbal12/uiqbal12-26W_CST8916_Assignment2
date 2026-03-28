@@ -304,6 +304,108 @@ def get_analytics():
         }), 200
 
 
+@app.route("/debug/peek-analytics", methods=["GET"])
+def peek_analytics():
+    """Peek messages from analytics Event Hub"""
+    from azure.eventhub import EventHubConsumerClient
+    
+    conn_str = os.environ.get("EVENT_HUB_CONNECTION_STR", "")
+    analytics_hub = os.environ.get("ANALYTICS_EVENT_HUB", "clickstream-analytics")
+    
+    if not conn_str:
+        return jsonify({"error": "Connection string not set"}), 500
+    
+    messages = []
+    
+    try:
+        client = EventHubConsumerClient.from_connection_string(
+            conn_str=conn_str,
+            consumer_group="$Default",
+            eventhub_name=analytics_hub,
+        )
+        
+        def on_event(partition_context, event):
+            if event:
+                messages.append(event.body_as_str())
+        
+        with client:
+            client.receive(
+                on_event=on_event,
+                starting_position="-1",
+                max_wait_time=3,
+                prefetch=10
+            )
+            
+    except Exception as e:
+        return jsonify({"error": str(e), "messages": messages}), 200
+    
+    return jsonify({
+        "messages": messages,
+        "count": len(messages),
+        "hub": analytics_hub
+    })
+
+
+@app.route("/debug/test-connection", methods=["GET"])
+def test_connection():
+    """Test if we can connect to analytics Event Hub"""
+    from azure.eventhub import EventHubConsumerClient
+    
+    try:
+        client = EventHubConsumerClient.from_connection_string(
+            conn_str=CONNECTION_STR,
+            consumer_group="$Default",
+            eventhub_name=ANALYTICS_EVENT_HUB,
+        )
+        with client:
+            partitions = client.get_partition_ids()
+            return jsonify({
+                "success": True,
+                "partitions": partitions,
+                "event_hub": ANALYTICS_EVENT_HUB,
+                "connection_string_set": bool(CONNECTION_STR)
+            })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "event_hub": ANALYTICS_EVENT_HUB,
+            "connection_string_set": bool(CONNECTION_STR)
+        }), 500
+
+
+@app.route("/debug/send-test", methods=["GET"])
+def send_test():
+    """Send a test analytics message"""
+    from azure.eventhub import EventHubProducerClient, EventData
+    
+    test_message = {
+        "dimension": "desktop",
+        "event_count": 10,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "analytics_type": "device_breakdown",
+        "percentage": 100
+    }
+    
+    try:
+        producer = EventHubProducerClient.from_connection_string(
+            conn_str=CONNECTION_STR,
+            eventhub_name=ANALYTICS_EVENT_HUB,
+        )
+        with producer:
+            event_batch = producer.create_batch()
+            event_batch.add(EventData(json.dumps(test_message)))
+            producer.send_batch(event_batch)
+        
+        return jsonify({
+            "status": "sent", 
+            "message": test_message,
+            "hub": ANALYTICS_EVENT_HUB
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/debug/consumer", methods=["GET"])
 def debug_consumer():
     """Check analytics consumer status"""
