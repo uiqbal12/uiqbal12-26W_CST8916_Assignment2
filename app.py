@@ -332,6 +332,19 @@ def get_events():
     return jsonify({"events": recent, "summary": summary, "total": len(recent)}), 200
 
 
+@app.route("/debug/consumer", methods=["GET"])
+def debug_consumer():
+    """Check analytics consumer status"""
+    import threading
+    
+    return jsonify({
+        "device_breakdown": dict(_device_breakdown.get("counts", {})),
+        "spike_detection": _spike_detection.get("current_spike"),
+        "consumer_should_be_running": True,
+        "threads": [t.name for t in threading.enumerate() if "analytics" in t.name.lower() or "consumer" in t.name.lower()]
+    })
+
+
 # ---------------------------------------------------------------------------
 # NEW: Analytics endpoint
 # ---------------------------------------------------------------------------
