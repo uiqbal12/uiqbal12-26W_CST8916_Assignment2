@@ -144,15 +144,26 @@ def start_consumer():
 async def on_analytics_event(partition_context, event):
     """Process events from Stream Analytics output."""
     body = event.body_as_str(encoding="UTF-8")
+    
+    # ADD THIS DEBUG LINE
+    app.logger.info(f"📨 RAW ANALYTICS EVENT: {body}")
+    
     try:
         data = json.loads(body)
+        
+        # ADD THIS DEBUG LINE
+        app.logger.info(f"📊 PARSED DATA: {data}")
+        app.logger.info(f"🔍 ANALYTICS TYPE: {data.get('analytics_type')}")
+        
     except json.JSONDecodeError:
         app.logger.warning(f"Failed to parse analytics event: {body}")
         return
     
     with _analytics_lock:
         if data.get("analytics_type") == "device_breakdown":
-            # Update device breakdown data
+            # ADD THIS DEBUG LINE
+            app.logger.info(f"📱 PROCESSING DEVICE BREAKDOWN: dimension={data.get('dimension')}, count={data.get('event_count')}")
+            
             timestamp = data.get("timestamp")
             dimension = data.get("dimension")
             count = data.get("event_count")
@@ -167,8 +178,13 @@ async def on_analytics_event(partition_context, event):
                 v["count"] for v in _device_breakdown["counts"].values()
             )
             
+            # ADD THIS DEBUG LINE
+            app.logger.info(f"✅ DEVICE BREAKDOWN UPDATED: {_device_breakdown['counts']}")
+            
         elif data.get("analytics_type") == "spike_detection":
-            # Update spike detection data
+            # ADD THIS DEBUG LINE
+            app.logger.info(f"⚠️ PROCESSING SPIKE DETECTION: current_events={data.get('current_events')}")
+            
             spike_info = {
                 "timestamp": data.get("timestamp"),
                 "current_events": data.get("current_events"),
@@ -180,11 +196,16 @@ async def on_analytics_event(partition_context, event):
             _spike_detection["current_spike"] = spike_info
             _spike_detection["history"].append(spike_info)
             
-            # Keep only last MAX_SPIKE_HISTORY entries
             if len(_spike_detection["history"]) > MAX_SPIKE_HISTORY:
                 _spike_detection["history"].pop(0)
             
             _spike_detection["last_update"] = data.get("timestamp")
+            
+            # ADD THIS DEBUG LINE
+            app.logger.info(f"✅ SPIKE DETECTION UPDATED: {spike_info}")
+        else:
+            # ADD THIS DEBUG LINE
+            app.logger.warning(f"❓ UNKNOWN ANALYTICS TYPE: {data.get('analytics_type')}")
     
     await partition_context.update_checkpoint(event)
 
