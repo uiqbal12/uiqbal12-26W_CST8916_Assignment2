@@ -35,7 +35,7 @@ CONNECTION_STR = os.environ.get("EVENT_HUB_CONNECTION_STR", "")
 EVENT_HUB_NAME = os.environ.get("EVENT_HUB_NAME", "clickstream")
 
 # NEW: Configuration for analytics event hub
-ANALYTICS_EVENT_HUB = os.environ.get("ANALYTICS_EVENT_HUB", "clickstream")
+ANALYTICS_EVENT_HUB = os.environ.get("ANALYTICS_EVENT_HUB", "clickstream-analytics")
 ANALYTICS_CONSUMER_GROUP = "$Default"
 
 # In-memory buffer: stores the last 50 events received by the consumer thread.
