@@ -1,291 +1,62 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ShopStream – Live Analytics Dashboard</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0d1117;
-      color: #e6edf3;
-      min-height: 100vh;
-    }
-
-    /* ── Header ─────────────────────────────────────────────── */
-    header {
-      background: #161b22;
-      border-bottom: 1px solid #30363d;
-      padding: 14px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    header h1 { font-size: 1.2rem; color: #58a6ff; }
-    .live-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: #1c2128;
-      border: 1px solid #30363d;
-      border-radius: 20px;
-      padding: 4px 12px;
-      font-size: 0.8rem;
-      color: #3fb950;
-    }
-    .live-badge .dot {
-      width: 8px; height: 8px;
-      background: #3fb950;
-      border-radius: 50%;
-      animation: pulse 1.4s infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: 0.3; }
-    }
-    header nav a {
-      color: #58a6ff;
-      text-decoration: none;
-      font-size: 0.85rem;
-      margin-left: 16px;
-    }
-
-    /* ── KPI cards ──────────────────────────────────────────── */
-    .kpi-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 16px;
-      padding: 24px;
-    }
-    .kpi {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 10px;
-      padding: 18px 24px;
-      flex: 1;
-      min-width: 160px;
-    }
-    .kpi .label { font-size: 0.75rem; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; }
-    .kpi .value { font-size: 2rem; font-weight: 700; margin-top: 6px; color: #58a6ff; }
-    .kpi .value.green  { color: #3fb950; }
-    .kpi .value.yellow { color: #e3b341; }
-    .kpi .value.red    { color: #f85149; }
-
-    /* ── Section layout ─────────────────────────────────────── */
-    .panels {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 16px;
-      padding: 0 24px 24px;
-    }
-    .panel {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 10px;
-      padding: 20px;
-      flex: 1;
-      min-width: 280px;
-    }
-    .panel h3 {
-      font-size: 0.85rem;
-      color: #8b949e;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 16px;
-    }
-
-    /* ── Bar chart ──────────────────────────────────────────── */
-    .bar-row {
-      display: flex;
-      align-items: center;
-      margin-bottom: 10px;
-      gap: 10px;
-    }
-    .bar-label { width: 120px; font-size: 0.85rem; color: #c9d1d9; flex-shrink: 0; }
-    .bar-track { flex: 1; background: #21262d; border-radius: 4px; height: 18px; overflow: hidden; }
-    .bar-fill  { height: 100%; background: #1f6feb; border-radius: 4px; transition: width 0.4s ease; }
-    .bar-count { width: 30px; text-align: right; font-size: 0.85rem; color: #8b949e; }
-
-    /* ── Event feed ─────────────────────────────────────────── */
-    #feed {
-      font-family: "Courier New", monospace;
-      font-size: 0.78rem;
-      max-height: 320px;
-      overflow-y: auto;
-    }
-    .feed-row {
-      display: flex;
-      gap: 8px;
-      padding: 5px 0;
-      border-bottom: 1px solid #21262d;
-    }
-    .feed-row:last-child { border-bottom: none; }
-    .feed-ts    { color: #484f58; flex-shrink: 0; width: 90px; }
-    .feed-type  { flex-shrink: 0; width: 110px; }
-    .feed-page  { color: #8b949e; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .feed-user  { color: #484f58; flex-shrink: 0; width: 60px; }
-
-    /* event type colours */
-    .t-page_view    { color: #58a6ff; }
-    .t-product_click{ color: #3fb950; }
-    .t-add_to_cart  { color: #e3b341; }
-    .t-purchase     { color: #f85149; }
-    .t-banner_click { color: #bc8cff; }
-    .t-unknown      { color: #8b949e; }
-
-    /* ── Footer ─────────────────────────────────────────────── */
-    footer {
-      text-align: center;
-      padding: 16px;
-      color: #484f58;
-      font-size: 0.78rem;
-      border-top: 1px solid #21262d;
-    }
-  </style>
+    <title>Clickstream Analytics Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .event { border: 1px solid #ccc; margin: 10px; padding: 10px; }
+        .summary { background: #f0f0f0; padding: 10px; margin: 10px; }
+        #events { max-height: 500px; overflow-y: auto; }
+    </style>
 </head>
 <body>
-
-<!-- ── Header ─────────────────────────────────────────────────── -->
-<header>
-  <h1>ShopStream – Live Analytics</h1>
-  <div style="display:flex; align-items:center; gap:16px;">
-    <div class="live-badge"><div class="dot"></div> LIVE</div>
-    <nav>
-      <a href="/">← Back to Store</a>
-    </nav>
-  </div>
-</header>
-
-<!-- ── KPI row ────────────────────────────────────────────────── -->
-<div class="kpi-row">
-  <div class="kpi">
-    <div class="label">Total Events</div>
-    <div class="value" id="kpi-total">–</div>
-  </div>
-  <div class="kpi">
-    <div class="label">Page Views</div>
-    <div class="value green" id="kpi-views">–</div>
-  </div>
-  <div class="kpi">
-    <div class="label">Add to Cart</div>
-    <div class="value yellow" id="kpi-cart">–</div>
-  </div>
-  <div class="kpi">
-    <div class="label">Purchases</div>
-    <div class="value red" id="kpi-purchase">–</div>
-  </div>
-</div>
-
-<!-- ── Panels ─────────────────────────────────────────────────── -->
-<div class="panels">
-
-  <!-- Event type breakdown -->
-  <div class="panel" style="max-width:400px;">
-    <h3>Events by Type</h3>
-    <div id="bar-chart">
-      <p style="color:#484f58; font-size:0.85rem;">Waiting for events...</p>
+    <h1>Clickstream Analytics Dashboard</h1>
+    
+    <div class="summary">
+        <h3>Event Summary</h3>
+        <div id="summary">Loading...</div>
     </div>
-  </div>
-
-  <!-- Live event feed -->
-  <div class="panel">
-    <h3>Live Event Feed (from Azure Event Hubs)</h3>
-    <div id="feed">
-      <p style="color:#484f58; font-size:0.85rem;">Waiting for events...</p>
+    
+    <div class="summary">
+        <h3>Recent Events</h3>
+        <div id="events">Loading...</div>
     </div>
-  </div>
 
-</div>
-
-<footer>
-  Polling <code>/api/events</code> every 2 seconds &nbsp;|&nbsp;
-  Events consumed from Azure Event Hubs &nbsp;|&nbsp;
-  CST8916 Week 10 Lab
-</footer>
-
-<script>
-  // Poll /api/events every 2 seconds and refresh the UI
-  const POLL_INTERVAL_MS = 2000;
-
-  // Colour map for event types
-  const TYPE_CLASS = {
-    page_view:     "t-page_view",
-    product_click: "t-product_click",
-    add_to_cart:   "t-add_to_cart",
-    purchase:      "t-purchase",
-    banner_click:  "t-banner_click",
-  };
-
-  function fetchAndRender() {
-    fetch("/api/events?limit=50")
-      .then(res => res.json())
-      .then(data => {
-        renderKPIs(data);
-        renderBarChart(data.summary);
-        renderFeed(data.events);
-      })
-      .catch(err => console.error("Poll error:", err));
-  }
-
-  // ── KPI cards ────────────────────────────────────────────────
-  function renderKPIs(data) {
-    document.getElementById("kpi-total").textContent    = data.total ?? 0;
-    document.getElementById("kpi-views").textContent    = data.summary?.page_view    ?? 0;
-    document.getElementById("kpi-cart").textContent     = data.summary?.add_to_cart  ?? 0;
-    document.getElementById("kpi-purchase").textContent = data.summary?.purchase     ?? 0;
-  }
-
-  // ── Bar chart ─────────────────────────────────────────────────
-  function renderBarChart(summary) {
-    const container = document.getElementById("bar-chart");
-    if (!summary || Object.keys(summary).length === 0) return;
-
-    const maxVal = Math.max(...Object.values(summary), 1);
-    container.innerHTML = "";
-
-    // Sort by count descending
-    const sorted = Object.entries(summary).sort((a, b) => b[1] - a[1]);
-    sorted.forEach(([type, count]) => {
-      const pct = (count / maxVal * 100).toFixed(1);
-      const row = document.createElement("div");
-      row.className = "bar-row";
-      row.innerHTML = `
-        <div class="bar-label ${TYPE_CLASS[type] || "t-unknown"}">${type}</div>
-        <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
-        <div class="bar-count">${count}</div>
-      `;
-      container.appendChild(row);
-    });
-  }
-
-  // ── Live feed ─────────────────────────────────────────────────
-  function renderFeed(events) {
-    const feed = document.getElementById("feed");
-    if (!events || events.length === 0) return;
-
-    feed.innerHTML = "";
-    // Show newest first
-    [...events].reverse().forEach(e => {
-      const ts   = e.timestamp ? e.timestamp.slice(11, 19) : "–";
-      const type = e.event_type || "unknown";
-      const cls  = TYPE_CLASS[type] || "t-unknown";
-      const row  = document.createElement("div");
-      row.className = "feed-row";
-      row.innerHTML = `
-        <span class="feed-ts">${ts}</span>
-        <span class="feed-type ${cls}">${type}</span>
-        <span class="feed-page">${e.page || "–"}</span>
-        <span class="feed-user">${(e.user_id || "–").slice(0, 8)}</span>
-      `;
-      feed.appendChild(row);
-    });
-  }
-
-  // Kick off polling immediately, then repeat
-  fetchAndRender();
-  setInterval(fetchAndRender, POLL_INTERVAL_MS);
-</script>
+    <script>
+        function fetchEvents() {
+            fetch('/api/events?limit=20')
+                .then(response => response.json())
+                .then(data => {
+                    // Update summary
+                    const summaryDiv = document.getElementById('summary');
+                    summaryDiv.innerHTML = '<pre>' + JSON.stringify(data.summary, null, 2) + '</pre>';
+                    summaryDiv.innerHTML += `<p>Total events: ${data.total}</p>`;
+                    
+                    // Update events
+                    const eventsDiv = document.getElementById('events');
+                    eventsDiv.innerHTML = '';
+                    data.events.forEach(event => {
+                        const eventDiv = document.createElement('div');
+                        eventDiv.className = 'event';
+                        eventDiv.innerHTML = `
+                            <strong>${event.event_type}</strong> - 
+                            Page: ${event.page} - 
+                            Time: ${event.server_timestamp || event.client_timestamp || 'N/A'}
+                            ${event.product_id ? `<br>Product: ${event.product_id}` : ''}
+                            ${event.deviceType ? `<br>Device: ${event.deviceType}, Browser: ${event.browser}, OS: ${event.os}` : ''}
+                        `;
+                        eventsDiv.appendChild(eventDiv);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching events:', error);
+                    document.getElementById('events').innerHTML = 'Error loading events';
+                });
+        }
+        
+        // Fetch events every 2 seconds
+        fetchEvents();
+        setInterval(fetchEvents, 2000);
+    </script>
 </body>
 </html>
