@@ -203,9 +203,17 @@ def start_analytics_consumer():
 
 
 # ---------------------------------------------------------------------------
+# START CONSUMERS - This runs when gunicorn loads the module
+# ---------------------------------------------------------------------------
+# IMPORTANT: For gunicorn deployment, we must start consumers here,
+# not in if __name__ == "__main__": because gunicorn doesn't execute that block
+start_consumer()
+start_analytics_consumer()
+
+
+# ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
-
 @app.route("/")
 def index():
     """Serve the demo e-commerce store."""
@@ -277,40 +285,6 @@ def get_events():
         summary[et] = summary.get(et, 0) + 1
 
     return jsonify({"events": recent, "summary": summary, "total": len(recent)}), 200
-
-
-@app.route("/debug/receive-test", methods=["GET"])
-def receive_test():
-    """Test receiving a message directly"""
-    from azure.eventhub import EventHubConsumerClient
-    
-    messages = []
-    
-    def on_event(partition_context, event):
-        messages.append(event.body_as_str())
-        app.logger.info(f"📨 RECEIVE TEST GOT: {event.body_as_str()[:200]}")
-    
-    try:
-        client = EventHubConsumerClient.from_connection_string(
-            conn_str=CONNECTION_STR,
-            consumer_group="$Default",
-            eventhub_name=ANALYTICS_EVENT_HUB,
-        )
-        
-        with client:
-            # Try to receive messages
-            client.receive(
-                on_event=on_event,
-                starting_position="-1",
-                max_wait_time=10  # Wait 10 seconds
-            )
-        
-        return jsonify({
-            "messages_received": messages,
-            "count": len(messages)
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/analytics", methods=["GET"])
@@ -444,12 +418,40 @@ def debug_consumer():
     })
 
 
+@app.route("/debug/receive-test", methods=["GET"])
+def receive_test():
+    """Test receiving a message directly"""
+    from azure.eventhub import EventHubConsumerClient
+    
+    messages = []
+    
+    def on_event(partition_context, event):
+        messages.append(event.body_as_str())
+        app.logger.info(f"📨 RECEIVE TEST GOT: {event.body_as_str()[:200]}")
+    
+    try:
+        client = EventHubConsumerClient.from_connection_string(
+            conn_str=CONNECTION_STR,
+            consumer_group="$Default",
+            eventhub_name=ANALYTICS_EVENT_HUB,
+        )
+        
+        with client:
+            client.receive(
+                on_event=on_event,
+                starting_position="-1",
+                max_wait_time=10
+            )
+        
+        return jsonify({
+            "messages_received": messages,
+            "count": len(messages)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ---------------------------------------------------------------------------
-# Entry point
+# Note: No if __name__ == "__main__": block needed for gunicorn deployment
+# The consumers started at the module level above will run automatically
 # ---------------------------------------------------------------------------
-if __name__ == "__main__":
-    # Start the background consumers
-    start_consumer()
-    start_analytics_consumer()
-    # Run on 0.0.0.0 so it is reachable both locally and inside Azure App Service
-    app.run(debug=False, host="0.0.0.0", port=8000)
