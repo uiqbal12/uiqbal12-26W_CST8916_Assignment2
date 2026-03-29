@@ -6,10 +6,10 @@
 #
 # Routes:
 #   GET  /              → serves the demo e-commerce store (client.html)
-#   POST /track         → receives a click event and publishes it to Event Hubs
-#   GET  /dashboard     → serves the live analytics dashboard (dashboard.html)
-#   GET  /api/events    → returns recent events as JSON (polled by the dashboard)
-#   GET  /api/analytics → returns processed analytics from Stream Analytics (NEW)
+#   POST /track         – receives a click event and publishes it to Event Hubs
+#   GET  /dashboard     – serves the live analytics dashboard (dashboard.html)
+#   GET  /api/events    – returns recent events as JSON (polled by the dashboard)
+#   GET  /api/analytics – returns processed analytics from Stream Analytics (NEW)
 
 import os
 import json
@@ -42,7 +42,7 @@ _buffer_lock = threading.Lock()
 MAX_BUFFER = 50
 
 # NEW: Data structures for analytics results
-_device_breakdown = defaultdict(lambda: {"counts": {}, "last_update": None})
+_device_breakdown = {"counts": defaultdict(dict), "total": 0, "last_update": None}
 _spike_detection = {"current_spike": None, "history": [], "last_update": None}
 _analytics_lock = threading.Lock()
 
@@ -139,22 +139,23 @@ def start_analytics_consumer():
             app.logger.info(f"📊 PARSED: analytics_type={data.get('analytics_type')}")
             
             with _analytics_lock:
-             if data.get("analytics_type") == "device_breakdown":
-    dimension = data.get("dimension")
-    event_count = data.get("event_count")
-    percentage = data.get("percentage", 0)
-    timestamp = data.get("timestamp")
-    
-    app.logger.info(f"📱 DEVICE: {dimension} = {event_count} ({percentage}%)")
-    
-    # Fix: Store in counts dictionary, not as separate property
-    _device_breakdown["counts"][dimension] = {
-        "count": event_count,
-        "percentage": percentage
-    }
-    _device_breakdown["total"] = sum(v["count"] for v in _device_breakdown["counts"].values())
-    _device_breakdown["last_update"] = timestamp
+                if data.get("analytics_type") == "device_breakdown":
+                    dimension = data.get("dimension")
+                    event_count = data.get("event_count")
+                    percentage = data.get("percentage", 0)
+                    timestamp = data.get("timestamp")
                     
+                    app.logger.info(f"📱 DEVICE: {dimension} = {event_count} ({percentage}%)")
+                    
+                    # Store in counts dictionary
+                    _device_breakdown["counts"][dimension] = {
+                        "count": event_count,
+                        "percentage": percentage
+                    }
+                    # Calculate total from all counts
+                    _device_breakdown["total"] = sum(v["count"] for v in _device_breakdown["counts"].values())
+                    _device_breakdown["last_update"] = timestamp
+                        
                 elif data.get("analytics_type") == "spike_detection":
                     app.logger.info(f"⚠️ SPIKE: {data.get('current_events')} events")
                     
@@ -190,8 +191,8 @@ def start_analytics_consumer():
             with consumer:
                 consumer.receive(
                     on_event=on_event_sync,
-                    starting_position="-1",  # Read from beginning
-                    max_wait_time=30,  # Wait 30 seconds for messages
+                    starting_position="-1",
+                    max_wait_time=30,
                     prefetch=10
                 )
             app.logger.info("🔧 consumer.receive() finished (should not happen normally)")
