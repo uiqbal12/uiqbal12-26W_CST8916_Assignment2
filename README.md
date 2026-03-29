@@ -31,6 +31,31 @@ A real-time clickstream analytics platform that tracks user interactions on an e
 
 ##  Design Decisions
 
+
+## Architecture Diagram 
+
+```mermaid 
+
+graph TB
+    subgraph "User Layer"
+        A[E-Commerce Store<br/>Flask App]
+        B[Dashboard<br/>Browser]
+    end
+    
+    subgraph "Azure Services"
+        C[Azure Event Hub<br/>Input<br/>clickstream]
+        D[Azure Stream<br/>Analytics Job]
+        E[Azure Event Hub<br/>Output<br/>clickstream-analytics]
+        F[Flask App<br/>API Layer]
+    end
+    
+    A -->|Click Events| C
+    C -->|Raw Events| D
+    D -->|Processed Data| E
+    E -->|Device Breakdown &<br/>Spike Detection| F
+    F -->|Poll /api/analytics<br/>every 2 seconds| B
+```
+
 ### 1. Event Enrichment
 **Decision:** Enrich click events with server-side timestamp, device type, browser, and OS at the API layer.
 
